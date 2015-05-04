@@ -5,7 +5,7 @@ import tweepy
 import time
 import datetime
 
-# Bug fixing
+
 def main():
     restart = True
     while restart == True:
@@ -82,6 +82,7 @@ def add_id_to_file(id):
     print "[bot] Adding post to posted_posts.txt : " + str(id)
     with open('posted_posts.txt', 'a') as file:
         file.write(str(id) + "\n")
+        file.close()
 
 def strip_title(title):
     if len(title) < 115:
