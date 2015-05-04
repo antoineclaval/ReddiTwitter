@@ -82,6 +82,7 @@ def add_id_to_file(id):
     print "[bot] Adding post to posted_posts.txt : " + str(id)
     with open('posted_posts.txt', 'a') as file:
         file.write(str(id) + "\n")
+    file.close()
 
 def strip_title(title):
     if len(title) < 115:
@@ -107,12 +108,6 @@ def tweeter(post_dict, post_ids):
         print post.encode('ascii', 'ignore') + " " + post_dict[post] + " #Sydney"
         api.update_status(status=post.encode('ascii', 'ignore') + " " + post_dict[post] + " #Sydney")
         add_id_to_file(post.encode('ascii', 'ignore'))
-        print "[bot] Sleeping for 10 secs"
-        time.sleep(10)
-        # else:
-        #     print "[bot] Already posted"
-        #     print "[bot] Sleeping for 10 secs"
-        #     time.sleep(10)
 
 if __name__ == '__main__':
     main()
