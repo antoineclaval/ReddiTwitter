@@ -5,7 +5,7 @@ import tweepy
 import time
 import datetime
 
-
+# Bug fixing
 def main():
     restart = True
     while restart == True:
