@@ -1,0 +1,1 @@
+# access token, access token secret, consumer key, consumer secret, twitter user, hashtag

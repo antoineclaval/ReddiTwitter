@@ -4,6 +4,7 @@ import requests
 import tweepy
 import time
 import datetime
+from pyshorteners import Shortener
 
 
 def main():
@@ -36,8 +37,7 @@ def tweet_creator(subreddit_info):
     for post in post_dict:
         post_title = post
         post_link = post_dict[post]
-        if duplicate_check(post) == False:
-            print "[bot] Generating short url using goo.gl"
+        if notPostedYet(post) :
             short_link = shorten(post_link)
             mini_post_dict[post_title] = short_link
             return mini_post_dict, post_ids
@@ -45,38 +45,39 @@ def tweet_creator(subreddit_info):
             print "[bot] Skipped generating short URL"
             return False, False
 
+def getTime():
+    return str(datetime.datetime.now())
+
 def setup_connection_reddit(subreddit):
-    time = datetime.datetime.now().time()
-    print "[bot] Start time: " + str(time) + "\n[bot] Setting up connection with Reddit"
-    r = praw.Reddit('SydneyReddit' 'monitoring %s' % (subreddit))
+    print "[bot] Start time: " + getTime() + "\n[bot] Setting up connection with Reddit"
+    r = praw.Reddit('[bot] Redditwitter' 'monitoring %s' % (subreddit))
     subreddit = r.get_subreddit(subreddit)
     return subreddit
 
 def shorten(url):
-    print "[bot] Starting URL shortening process"
-    f = open('SydneyReddit.txt')
+    f = open("adfly.txt")
     lines = f.readlines()
     f.close()
-    key = lines[4].strip()
-    # print "[bot] Key is: " + key
-    headers = {'content-type': 'application/json'}
-    payload = {"longUrl": url}
-    url = "https://www.googleapis.com/urlshortener/v1/url?key=" + key
-    r = requests.post(url, data=json.dumps(payload), headers=headers)
-    link = json.loads(r.text)['id']
-    return link
+    adflyInfo = lines[1].split(",")
+    print "[bot] Shorten the following URL : "+ url 
+    shortener = Shortener('AdflyShortener', uid=adflyInfo[1].strip(), key=adflyInfo[0].strip())
+    #shortener = Shortener('TinyurlShortener')
+    shortUrl = shortener.short(url)
+    print "[bot] shortUrl : " + shortUrl
+    return shortUrl 
+    
 
-def duplicate_check(id):
+def notPostedYet(id):
     print "[bot] Checking for duplicates"
-    found = False
+    notPosted = True
     with open('posted_posts.txt', 'r') as file:
         lines = file.readlines()
         if id in lines[-1]:
-            print "[bot] Duplicate found"
-            found = True
+            print "[bot] already posted"
+            notPosted = False
         else:
-            print "[bot] Duplicate not found"
-    return found
+            print "[bot] not posted yet..."
+    return notPosted
 
 def add_id_to_file(id):
     print "[bot] Adding post to posted_posts.txt : " + str(id)
@@ -91,23 +92,31 @@ def strip_title(title):
         return title[:114] + "..."
 
 def tweeter(post_dict, post_ids):
-    f = open('SydneyReddit.txt')
-    lines = f.readlines()
-    f.close()
-    access_token = lines[0].strip()
-    access_token_secret = lines[1].strip()
-    consumer_key = lines[2].strip()
-    consumer_secret = lines[3].strip()
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_token_secret)
-    api = tweepy.API(auth)
+
+    twitterAccount = TwitterAccount('twitter.txt')
+
     for post, post_id in zip(post_dict, post_ids):
-        # found = duplicate_check(post)
-        # if found == 0:
-        print "[bot] Posting the following on twitter"
-        print post.encode('ascii', 'ignore') + " " + post_dict[post] + " #Sydney"
-        api.update_status(status=post.encode('ascii', 'ignore') + " " + post_dict[post] + " #Sydney")
-        add_id_to_file(post.encode('ascii', 'ignore'))
+        if  notPostedYet(post) :
+            twitterAccount.tweet(post.encode('ascii', 'ignore') + " " + post_dict[post])
+            add_id_to_file(post.encode('ascii', 'ignore'))
+
+class TwitterAccount:
+    def __init__(self, twitterInfoFile):
+        f = open(twitterInfoFile)
+        lines = f.readlines()
+        f.close()
+        twitterInfo = lines[1].split(",")
+        self.auth = tweepy.OAuthHandler(twitterInfo[2], twitterInfo[3])
+        self.auth.set_access_token(twitterInfo[0], twitterInfo[1])
+        self.api = tweepy.API(self.auth)
+        self.hashtag = twitterInfo[5]
+        self.twitterHandle = twitterInfo[4]
+
+    def tweet(self,text):
+        print "[bot] " + getTime() + " : Posting the following on twitter"
+        print text + " " + self.twitterHandle + " " + self.hashtag 
+        #self.api.update_status(status=text + " " + self.twitterHandle + " " + self.hashtag)
+
 
 if __name__ == '__main__':
     main()
