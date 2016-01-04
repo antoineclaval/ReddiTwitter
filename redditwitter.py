@@ -13,20 +13,20 @@ import json
 def main():
     restart = True
     while restart == True:
-        try:
-            while True:
-                restart = False
-                subreddit = setup_connection_reddit(sys.argv[1])
-                post_dict, post_ids = tweet_creator(subreddit)
-                if post_dict != False:
-                    tweeter(post_dict, post_ids)
-                print "[bot] Sleeping 10 secs"
-                time.sleep(10)
-        except Exception, e:
-            restart = True
-            print "[bot] Exception caught: ", e
-            print "[bot] Exception caught - Sleeping 10 secs"
+       # try:
+        while True:
+            restart = False
+            subreddit = setup_connection_reddit(sys.argv[1])
+            post_dict, post_ids = tweet_creator(subreddit)
+            if post_dict != False:
+                tweeter(post_dict, post_ids)
+            print "[bot] Sleeping 10 secs"
             time.sleep(10)
+       # except Exception, e:
+       #     restart = True
+       #     print "[bot] Exception caught: ", e
+       #     print "[bot] Exception caught - Sleeping 10 secs"
+       #     time.sleep(10)
 
 def tweet_creator(subreddit_info):
     post_dict = {}
@@ -70,11 +70,12 @@ def shortenAdfly(url):
     return shortUrl 
 
 def shorten(url):
-    response = requests.put("https://api.shorte.st/v1/data/url", {"urlToShorten":url}, headers={"public-api-token": "76e60d413f5f6ed8d5a598161e37e5ed"})
-    print response.content
+    f = open("shorten.txt")
+    apiToken = f.readlines()[1].strip()
+    f.close()
+    response = requests.put("https://api.shorte.st/v1/data/url", {"urlToShorten":url}, headers={"public-api-token": apiToken})
     decoded_response = json.loads(response.content)
-    print  "[bot] shortUrl : " + decoded_response['shortenedUrl']
-    return decoded_response['shortenedUrl']
+    return str(decoded_response['shortenedUrl'])
     
 
 def notPostedYet(id):
