@@ -97,10 +97,10 @@ def add_id_to_file(id):
     file.close()
 
 def strip_title(title):
-    if len(title) < 115:
+    if len(title) < 90:
         return title
     else:
-        return title[:114] + "..."
+        return title[:90] + "..."
 
 def tweeter(post_dict, post_ids):
 

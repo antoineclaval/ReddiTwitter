@@ -1,1 +1,2 @@
-public-api-token
+#public-api-token
+your-public-key
