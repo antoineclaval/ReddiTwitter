@@ -5,6 +5,9 @@ import tweepy
 import time
 import datetime
 from pyshorteners import Shortener
+import sys
+import requests
+import json
 
 
 def main():
@@ -13,7 +16,7 @@ def main():
         try:
             while True:
                 restart = False
-                subreddit = setup_connection_reddit('sydney')
+                subreddit = setup_connection_reddit(sys.argv[1])
                 post_dict, post_ids = tweet_creator(subreddit)
                 if post_dict != False:
                     tweeter(post_dict, post_ids)
@@ -49,12 +52,12 @@ def getTime():
     return str(datetime.datetime.now())
 
 def setup_connection_reddit(subreddit):
-    print "[bot] Start time: " + getTime() + "\n[bot] Setting up connection with Reddit"
-    r = praw.Reddit('[bot] Redditwitter' 'monitoring %s' % (subreddit))
+    print "[bot] Start time: " + getTime() + "\n[bot] Setting up connection with reddit/r/"+subreddit
+    r = praw.Reddit('Redditwitter' 'monitoring %s' % (subreddit))
     subreddit = r.get_subreddit(subreddit)
     return subreddit
 
-def shorten(url):
+def shortenAdfly(url):
     f = open("adfly.txt")
     lines = f.readlines()
     f.close()
@@ -65,6 +68,13 @@ def shorten(url):
     shortUrl = shortener.short(url)
     print "[bot] shortUrl : " + shortUrl
     return shortUrl 
+
+def shorten(url):
+    response = requests.put("https://api.shorte.st/v1/data/url", {"urlToShorten":url}, headers={"public-api-token": "76e60d413f5f6ed8d5a598161e37e5ed"})
+    print response.content
+    decoded_response = json.loads(response.content)
+    print  "[bot] shortUrl : " + decoded_response['shortenedUrl']
+    return decoded_response['shortenedUrl']
     
 
 def notPostedYet(id):
@@ -115,8 +125,7 @@ class TwitterAccount:
     def tweet(self,text):
         print "[bot] " + getTime() + " : Posting the following on twitter"
         print text + " " + self.twitterHandle + " " + self.hashtag 
-        #self.api.update_status(status=text + " " + self.twitterHandle + " " + self.hashtag)
-
+        self.api.update_status(status=text + " " + self.twitterHandle + " " + self.hashtag)
 
 if __name__ == '__main__':
     main()
