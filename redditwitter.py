@@ -8,6 +8,8 @@ from pyshorteners import Shortener
 import sys
 import requests
 import json
+import urlparse, mimetypes
+import ConfigParser
 
 
 def main():
@@ -17,7 +19,7 @@ def main():
         while True:
             restart = False
             subreddit = setup_connection_reddit(sys.argv[1])
-            post_dict, post_ids = tweet_creator(subreddit)
+            post_dict, post_ids = checkReddit(subreddit)
             if post_dict != False:
                 tweeter(post_dict, post_ids)
             print "[bot] Sleeping 10 secs"
@@ -28,11 +30,12 @@ def main():
        #     print "[bot] Exception caught - Sleeping 10 secs"
        #     time.sleep(10)
 
-def tweet_creator(subreddit_info):
+
+def checkReddit(subreddit_info):
     post_dict = {}
     post_ids = []
     print "[bot] Getting posts from Reddit"
-    for submission in subreddit_info.get_new(limit=1):
+    for submission in subreddit_info.get_new(limit=5):
         post_dict[strip_title(submission.title)] = submission.url
         post_ids.append(submission.id)
 
@@ -57,22 +60,26 @@ def setup_connection_reddit(subreddit):
     subreddit = r.get_subreddit(subreddit)
     return subreddit
 
-def shortenAdfly(url):
-    f = open("adfly.txt")
-    lines = f.readlines()
-    f.close()
-    adflyInfo = lines[1].split(",")
-    print "[bot] Shorten the following URL : "+ url 
-    shortener = Shortener('AdflyShortener', uid=adflyInfo[1].strip(), key=adflyInfo[0].strip())
-    #shortener = Shortener('TinyurlShortener')
-    shortUrl = shortener.short(url)
-    print "[bot] shortUrl : " + shortUrl
-    return shortUrl 
+def handleImgurUrl(url):
+    print "imgur detected :"+url
+  #  if( '/a/' in url)
+  #      return url 
+  #  else 
+  #     # imgurId = url.split()
+  #      return "http://i.imgur.com/4fVCo5v"
 
 def shorten(url):
-    f = open("shorten.txt")
-    apiToken = f.readlines()[1].strip()
-    f.close()
+    print "shorten : " + url 
+    maintype= mimetypes.guess_type(urlparse.urlparse(url).path)[0]
+  #  if maintype in ('image/png', 'image/jpeg', 'image/gif'):
+  #      print "a Image !"
+  #  else if "imgur" in url 
+  #      handleImgurUrl(url)
+
+    Config = ConfigParser.ConfigParser()
+    Config.read("config.ini")
+    apiToken = Config.get('shorte.st', 'public-api-token')
+
     response = requests.put("https://api.shorte.st/v1/data/url", {"urlToShorten":url}, headers={"public-api-token": apiToken})
     decoded_response = json.loads(response.content)
     return str(decoded_response['shortenedUrl'])
@@ -104,29 +111,27 @@ def strip_title(title):
 
 def tweeter(post_dict, post_ids):
 
-    twitterAccount = TwitterAccount('twitter.txt')
+    twitterAccount = TwitterAccount()
 
     for post, post_id in zip(post_dict, post_ids):
         if  notPostedYet(post) :
             twitterAccount.tweet(post.encode('ascii', 'ignore') + " " + post_dict[post])
             add_id_to_file(post.encode('ascii', 'ignore'))
 
+
 class TwitterAccount:
-    def __init__(self, twitterInfoFile):
-        f = open(twitterInfoFile)
-        lines = f.readlines()
-        f.close()
-        twitterInfo = lines[1].split(",")
-        self.auth = tweepy.OAuthHandler(twitterInfo[2], twitterInfo[3])
-        self.auth.set_access_token(twitterInfo[0], twitterInfo[1])
+    def __init__(self):
+        Config = ConfigParser.ConfigParser()
+        Config.read("config.ini")
+        self.auth = tweepy.OAuthHandler(Config.get('twitter','consumer_key'), Config.get('twitter', 'consumer_secret'))
+        self.auth.set_access_token(Config.get('twitter','access_token'), Config.get('twitter','access_token_secret'))
         self.api = tweepy.API(self.auth)
-        self.hashtag = twitterInfo[5]
-        self.twitterHandle = twitterInfo[4]
+        self.hashtag = Config.get('twitter', 'hashtag')
 
     def tweet(self,text):
         print "[bot] " + getTime() + " : Posting the following on twitter"
-        print text + " " + self.twitterHandle + " " + self.hashtag 
-        self.api.update_status(status=text + " " + self.twitterHandle + " " + self.hashtag)
+        print text + " " + self.hashtag 
+        self.api.update_status(status=text + " " + self.hashtag)
 
 if __name__ == '__main__':
     main()

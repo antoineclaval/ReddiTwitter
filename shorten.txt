@@ -1,2 +1,0 @@
-#public-api-token
-your-public-key
