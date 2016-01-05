@@ -15,28 +15,30 @@ import ConfigParser
 def main():
     restart = True
     while restart == True:
-       # try:
-        while True:
-            restart = False
-            subreddit = setup_connection_reddit(sys.argv[1])
-            post_dict, post_ids = checkReddit(subreddit)
-            if post_dict != False:
-                tweeter(post_dict, post_ids)
-            print "[bot] Sleeping 10 secs"
+        try:
+            while True:
+                restart = False
+                subreddit = setup_connection_reddit(sys.argv[1])
+                post_dict, post_ids, author = checkReddit(subreddit)
+                if post_dict != False:
+                    tweeter(post_dict, post_ids, author)
+                print "[bot] Sleeping 10 secs"
+                time.sleep(10)
+        except Exception, e:
+            restart = True
+            print "[bot] Exception caught: ", e
+            print "[bot] Exception caught - Sleeping 10 secs"
             time.sleep(10)
-       # except Exception, e:
-       #     restart = True
-       #     print "[bot] Exception caught: ", e
-       #     print "[bot] Exception caught - Sleeping 10 secs"
-       #     time.sleep(10)
 
 
 def checkReddit(subreddit_info):
     post_dict = {}
     post_ids = []
+    author = "Unknow"
     print "[bot] Getting posts from Reddit"
-    for submission in subreddit_info.get_new(limit=5):
+    for submission in subreddit_info.get_new(limit=1):
         post_dict[strip_title(submission.title)] = submission.url
+        author = submission.author.name.encode('utf-8')
         post_ids.append(submission.id)
 
     mini_post_dict = {}
@@ -46,10 +48,10 @@ def checkReddit(subreddit_info):
         if notPostedYet(post) :
             short_link = shorten(post_link)
             mini_post_dict[post_title] = short_link
-            return mini_post_dict, post_ids
+            return mini_post_dict, post_ids, author
         else:
             print "[bot] Skipped generating short URL"
-            return False, False
+            return False, False, False
 
 def getTime():
     return str(datetime.datetime.now())
@@ -79,6 +81,7 @@ def shorten(url):
     Config = ConfigParser.ConfigParser()
     Config.read("config.ini")
     apiToken = Config.get('shorte.st', 'public-api-token')
+    print apiToken
 
     response = requests.put("https://api.shorte.st/v1/data/url", {"urlToShorten":url}, headers={"public-api-token": apiToken})
     decoded_response = json.loads(response.content)
@@ -109,13 +112,13 @@ def strip_title(title):
     else:
         return title[:90] + "..."
 
-def tweeter(post_dict, post_ids):
+def tweeter(post_dict, post_ids, author):
 
     twitterAccount = TwitterAccount()
 
     for post, post_id in zip(post_dict, post_ids):
         if  notPostedYet(post) :
-            twitterAccount.tweet(post.encode('ascii', 'ignore') + " " + post_dict[post])
+            twitterAccount.tweet(post.encode('ascii', 'ignore') + " " + post_dict[post] + " @"+author)
             add_id_to_file(post.encode('ascii', 'ignore'))
 
 
