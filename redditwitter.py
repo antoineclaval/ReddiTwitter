@@ -8,8 +8,9 @@ from pyshorteners import Shortener
 import sys
 import requests
 import json
-import urlparse, mimetypes
+import mimetypes
 import ConfigParser
+from urlparse import urlparse
 
 
 def main():
@@ -19,17 +20,17 @@ def main():
             while True:
                 restart = False
                 subreddit = setup_connection_reddit(sys.argv[1])
-                post_dict, post_ids, author = checkReddit(subreddit)
+                post_dict, post_ids, author, imageFile = checkReddit(subreddit)
                 if post_dict != False:
-                    tweeter(post_dict, post_ids, author)
-                print "[bot] Sleeping 10 secs"
-                time.sleep(10)
+                    tweeter(post_dict, post_ids, author, imageFile)
+                print "[bot] Sleeping " + sys.argv[2] + " minutes"
+                time.sleep(num(sys.argv[2]) * 60) 
         except Exception, e:
             restart = True
             print "[bot] Exception caught: ", e
             print "[bot] Exception caught - Sleeping 10 secs"
             time.sleep(10)
-
+#
 
 def checkReddit(subreddit_info):
     post_dict = {}
@@ -46,12 +47,14 @@ def checkReddit(subreddit_info):
         post_title = post
         post_link = post_dict[post]
         if notPostedYet(post) :
+            imageName = False 
+            imageName = handleImage(post_link)
             short_link = shorten(post_link)
             mini_post_dict[post_title] = short_link
-            return mini_post_dict, post_ids, author
+            return mini_post_dict, post_ids, author, imageName
         else:
             print "[bot] Skipped generating short URL"
-            return False, False, False
+            return False, False, False, False
 
 def getTime():
     return str(datetime.datetime.now())
@@ -62,26 +65,35 @@ def setup_connection_reddit(subreddit):
     subreddit = r.get_subreddit(subreddit)
     return subreddit
 
+def handleImage(url):
+    url = handleImgurUrl(url)
+    path = urlparse(url).path
+    print path 
+    maintype= mimetypes.guess_type(path)[0]
+    if maintype in ('image/png', 'image/jpeg', 'image/gif'):
+        f = open("img"+path,'wb')
+        f.write(requests.get(url).content)
+        f.close()
+        return "img"+path
+    return False
+
+
 def handleImgurUrl(url):
-    print "imgur detected :"+url
-  #  if( '/a/' in url)
-  #      return url 
-  #  else 
-  #     # imgurId = url.split()
-  #      return "http://i.imgur.com/4fVCo5v"
+    if ( "imgur" in url): 
+        print "imgur detected :"+url
+        if( '/a/' in url or 'i.imgur.com' in url or 'imgur.com/gallery' in url):
+            # /a/ it's a album. Can't do much. i.imgur = it's already a image nothing to do
+            return url 
+        else :
+            imgurId = url.split("/")
+            print  imgurId
+            return "http://i.imgur.com/" + imgurId[3] + ".jpeg"
 
 def shorten(url):
     print "shorten : " + url 
-    maintype= mimetypes.guess_type(urlparse.urlparse(url).path)[0]
-  #  if maintype in ('image/png', 'image/jpeg', 'image/gif'):
-  #      print "a Image !"
-  #  else if "imgur" in url 
-  #      handleImgurUrl(url)
-
     Config = ConfigParser.ConfigParser()
     Config.read("config.ini")
     apiToken = Config.get('shorte.st', 'public-api-token')
-    print apiToken
 
     response = requests.put("https://api.shorte.st/v1/data/url", {"urlToShorten":url}, headers={"public-api-token": apiToken})
     decoded_response = json.loads(response.content)
@@ -107,19 +119,25 @@ def add_id_to_file(id):
     file.close()
 
 def strip_title(title):
-    if len(title) < 90:
+    if len(title) < 80:
         return title
     else:
-        return title[:90] + "..."
+        return title[:80] + "..."
 
-def tweeter(post_dict, post_ids, author):
+def tweeter(post_dict, post_ids, author, imageFile):
 
     twitterAccount = TwitterAccount()
 
     for post, post_id in zip(post_dict, post_ids):
         if  notPostedYet(post) :
-            twitterAccount.tweet(post.encode('ascii', 'ignore') + " " + post_dict[post] + " @"+author)
+            twitterAccount.tweet(post.encode('ascii', 'ignore') + " " + post_dict[post] , " @"+author, imageFile)
             add_id_to_file(post.encode('ascii', 'ignore'))
+
+def num(s):
+    try:
+        return int(s)
+    except ValueError:
+        return float(s)
 
 
 class TwitterAccount:
@@ -131,10 +149,18 @@ class TwitterAccount:
         self.api = tweepy.API(self.auth)
         self.hashtag = Config.get('twitter', 'hashtag')
 
-    def tweet(self,text):
+    def tweet(self,text,author, media):
         print "[bot] " + getTime() + " : Posting the following on twitter"
-        print text + " " + self.hashtag 
-        self.api.update_status(status=text + " " + self.hashtag)
+        toPost = text + " " + author + " " + self.hashtag 
+        if len(toPost) > 140 :
+            lentext = 138 - len(author) - len(self.hashtag) # 138 because of spaces
+            toPost = toPost[:lentext] + " " + author + " " + self+hashtag 
+        print toPost
+        if (media == False):
+            self.api.update_status(status=toPost)
+        else :
+            print "upload " + media + " on twitter"
+            self.api.update_with_media(media, status=toPost)
 
 if __name__ == '__main__':
     main()
