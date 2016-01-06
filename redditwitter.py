@@ -153,9 +153,10 @@ class TwitterAccount:
         print "[bot] " + getTime() + " : Posting the following on twitter"
         toPost = text + " " + author + " " + self.hashtag 
         if len(toPost) > 140 :
-            lentext = 138 - len(author) - len(self.hashtag) # 138 because of spaces
-            toPost = toPost[:lentext] + " " + author + " " + self+hashtag 
-        print toPost
+            lentext = 136 - len(author) - len(self.hashtag) # 136 because of spaces
+            toPost = text[:lentext] + " " + author + " " + self+hashtag 
+        print toPost 
+        print "len:" + str(len(toPost))
         if (media == False):
             self.api.update_status(status=toPost)
         else :
