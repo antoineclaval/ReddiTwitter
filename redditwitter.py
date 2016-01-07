@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import praw
 import json
 import requests
@@ -5,13 +6,14 @@ import tweepy
 import time
 import datetime
 from pyshorteners import Shortener
-import sys
+import sys, traceback
 import requests
 import json
 import mimetypes
 import ConfigParser
 from urlparse import urlparse
 
+NUMBER_OF_CHAR_FOR_URL = 23 
 
 def main():
     restart = True
@@ -23,20 +25,20 @@ def main():
                 post_dict, post_ids, author, imageFile = checkReddit(subreddit)
                 if post_dict != False:
                     tweeter(post_dict, post_ids, author, imageFile)
-                print "[bot] Sleeping " + sys.argv[2] + " minutes"
+                print getTime() + " : Sleeping " + sys.argv[2] + " minutes"
                 time.sleep(num(sys.argv[2]) * 60) 
         except Exception, e:
             restart = True
-            print "[bot] Exception caught: ", e
-            print "[bot] Exception caught - Sleeping 10 secs"
-            time.sleep(10)
-#
+            print " Exception caught - Sleeping 2 min"
+            traceback.print_exc(file=sys.stdout)
+            time.sleep(60*2)
+
 
 def checkReddit(subreddit_info):
     post_dict = {}
     post_ids = []
     author = "Unknow"
-    print "[bot] Getting posts from Reddit"
+    print " Getting posts from Reddit"
     for submission in subreddit_info.get_new(limit=1):
         post_dict[strip_title(submission.title)] = submission.url
         author = submission.author.name.encode('utf-8')
@@ -53,20 +55,22 @@ def checkReddit(subreddit_info):
             mini_post_dict[post_title] = short_link
             return mini_post_dict, post_ids, author, imageName
         else:
-            print "[bot] Skipped generating short URL"
+            print " Skipped generating short URL"
             return False, False, False, False
 
 def getTime():
     return str(datetime.datetime.now())
 
 def setup_connection_reddit(subreddit):
-    print "[bot] Start time: " + getTime() + "\n[bot] Setting up connection with reddit/r/"+subreddit
+    print " Start time: " + getTime() + "\n Setting up connection with reddit/r/"+subreddit
     r = praw.Reddit('Redditwitter' 'monitoring %s' % (subreddit))
     subreddit = r.get_subreddit(subreddit)
     return subreddit
 
 def handleImage(url):
+    print url 
     url = handleImgurUrl(url)
+    print url 
     path = urlparse(url).path
     print path 
     maintype= mimetypes.guess_type(path)[0]
@@ -88,6 +92,8 @@ def handleImgurUrl(url):
             imgurId = url.split("/")
             print  imgurId
             return "http://i.imgur.com/" + imgurId[3] + ".jpeg"
+    else :
+        return url 
 
 def shorten(url):
     print "shorten : " + url 
@@ -101,19 +107,19 @@ def shorten(url):
     
 
 def notPostedYet(id):
-    print "[bot] Checking for duplicates"
+    print "Checking for duplicates"
     notPosted = True
     with open('posted_posts.txt', 'r') as file:
         lines = file.readlines()
         if id in lines[-1]:
-            print "[bot] already posted"
+            print "already posted"
             notPosted = False
         else:
-            print "[bot] not posted yet..."
+            print "not posted yet..."
     return notPosted
 
 def add_id_to_file(id):
-    print "[bot] Adding post to posted_posts.txt : " + str(id)
+    print " Adding post to posted_posts.txt : " + str(id)
     with open('posted_posts.txt', 'a') as file:
         file.write(str(id) + "\n")
     file.close()
@@ -130,7 +136,7 @@ def tweeter(post_dict, post_ids, author, imageFile):
 
     for post, post_id in zip(post_dict, post_ids):
         if  notPostedYet(post) :
-            twitterAccount.tweet(post.encode('ascii', 'ignore') + " " + post_dict[post] , " @"+author, imageFile)
+            twitterAccount.tweet(post_dict[post] + " " + post.encode('ascii', 'ignore')  , " @"+author, imageFile)
             add_id_to_file(post.encode('ascii', 'ignore'))
 
 def num(s):
@@ -150,18 +156,18 @@ class TwitterAccount:
         self.hashtag = Config.get('twitter', 'hashtag')
 
     def tweet(self,text,author, media):
-        print "[bot] " + getTime() + " : Posting the following on twitter"
+        print " " + getTime() + " : Posting the following on twitter"
         toPost = text + " " + author + " " + self.hashtag 
-        if len(toPost) > 140 :
-            lentext = 136 - len(author) - len(self.hashtag) # 136 because of spaces
-            toPost = text[:lentext] + " " + author + " " + self+hashtag 
+        if len(toPost) > (140 - NUMBER_OF_CHAR_FOR_URL)  :
+            lentext = 140 - 2 - NUMBER_OF_CHAR_FOR_URL  - len(author) - len(self.hashtag) # 140 - 2  because of spaces - 23 for URL 
+            toPost = text[:lentext] + " " + author + " " + self.hashtag 
         print toPost 
-        print "len:" + str(len(toPost))
         if (media == False):
             self.api.update_status(status=toPost)
         else :
             print "upload " + media + " on twitter"
             self.api.update_with_media(media, status=toPost)
+            os.remove(media)
 
 if __name__ == '__main__':
     main()
